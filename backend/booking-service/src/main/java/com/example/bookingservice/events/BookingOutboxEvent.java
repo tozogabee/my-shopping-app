@@ -11,7 +11,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "outbox_events")
-@Setter
 @Getter
 @ToString
 public class BookingOutboxEvent {
@@ -49,4 +48,5 @@ public class BookingOutboxEvent {
     public void markAsProcessed() {
         this.processed = true;
     }
+
 }

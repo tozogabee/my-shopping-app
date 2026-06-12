@@ -1,0 +1,17 @@
+meta {
+  name: Delete Booking By ID
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/bookings/{{bookingId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

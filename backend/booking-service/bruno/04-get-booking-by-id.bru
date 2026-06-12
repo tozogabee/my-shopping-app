@@ -1,0 +1,33 @@
+meta {
+  name: Get Booking By ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/bookings/{{bookingId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("id matches requested id", function() {
+    expect(res.body.id).to.equal(bru.getVar("bookingId"));
+  });
+
+  test("has userId", function() {
+    expect(res.body.userId).to.be.a("string");
+  });
+
+  test("has resourceId", function() {
+    expect(res.body.resourceId).to.be.a("string");
+  });
+
+  test("status is PENDING", function() {
+    expect(res.body.status).to.equal("PENDING");
+  });
+}

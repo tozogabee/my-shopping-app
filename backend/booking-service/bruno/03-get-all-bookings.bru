@@ -1,0 +1,21 @@
+meta {
+  name: Get All Bookings
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/bookings
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("response is an array", function() {
+    expect(res.body).to.be.an("array");
+  });
+}
