@@ -1,0 +1,27 @@
+meta {
+  name: Create Booking - Missing userId
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/bookings
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "resourceId": "{{$randomUUID}}"
+  }
+}
+
+tests {
+  test("returns 4xx or 500 for missing userId", function() {
+    expect(res.status).to.be.oneOf([400, 500]);
+  });
+}

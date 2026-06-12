@@ -1,0 +1,25 @@
+meta {
+  name: Get Deleted Booking - Returns 404
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/bookings/{{bookingId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("deleted booking returns 404", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("error code is 404", function() {
+    expect(res.body.code).to.equal(404);
+  });
+
+  test("error message is not blank", function() {
+    expect(res.body.message).to.be.a("string").and.not.empty;
+  });
+}

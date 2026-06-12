@@ -1,0 +1,25 @@
+meta {
+  name: Delete Booking By ID - Not Found
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/bookings/00000000-0000-0000-0000-000000000000
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("error code is 404", function() {
+    expect(res.body.code).to.equal(404);
+  });
+
+  test("error message is not blank", function() {
+    expect(res.body.message).to.be.a("string").and.not.empty;
+  });
+}

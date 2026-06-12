@@ -1,0 +1,42 @@
+meta {
+  name: Create Booking
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/bookings
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "userId": "{{$randomUUID}}",
+    "resourceId": "{{$randomUUID}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("bookingId", res.body.id);
+  }
+}
+
+tests {
+  test("returns 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("response has id", function() {
+    expect(res.body.id).to.be.a("string");
+  });
+
+  test("status is PENDING", function() {
+    expect(res.body.status).to.equal("PENDING");
+  });
+}
