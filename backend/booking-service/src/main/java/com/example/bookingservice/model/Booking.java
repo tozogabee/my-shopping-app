@@ -49,4 +49,12 @@ public class Booking {
         this.status = BookingStatus.CONFIRMED;
     }
 
+    public void cancel() {
+        if (this.status == BookingStatus.CANCELLED) {
+            return; // Idempotencia biztosítása: ha már törölve van, ne dobjon hibát
+        }
+        this.status = BookingStatus.CANCELLED;
+        this.updatedAt = Instant.now();
+    }
+
 }

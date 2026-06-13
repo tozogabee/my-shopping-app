@@ -14,6 +14,20 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: booking-service-group
+      # Ha a szerviz először indul, és még nincs elmentett offsetje,
+      # a legelső (earliest) üzenettől kezdje az olvasást, ne csak a most beérkezőktől.
+      auto-offset-reset: earliest
+      # A bájtokat Stringgé (JSON payload) kell alakítani az olvasáskor
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/myshopping
 
 booking:
   relay:

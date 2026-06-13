@@ -61,7 +61,7 @@ class BookingServiceTest {
         when(bookingMapper.toDTO(any())).thenReturn(dto);
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
-        BookingDTO result = bookingService.createBooking(new BookingRequest(USER_ID, RESOURCE_ID));
+        BookingDTO result = bookingService.createBooking(USER_ID, new BookingRequest(RESOURCE_ID));
 
         assertThat(result.getStatus()).isEqualTo(BookingDTO.StatusEnum.PENDING);
     }
@@ -74,7 +74,7 @@ class BookingServiceTest {
         when(bookingMapper.toDTO(any())).thenReturn(dto);
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
-        bookingService.createBooking(new BookingRequest(USER_ID, RESOURCE_ID));
+        bookingService.createBooking(USER_ID, new BookingRequest(RESOURCE_ID));
 
         verify(bookingRepository).save(any(Booking.class));
         verify(outboxRepository).save(any(BookingOutboxEvent.class));
@@ -89,7 +89,7 @@ class BookingServiceTest {
         when(bookingMapper.toDTO(any())).thenReturn(dto);
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
-        bookingService.createBooking(new BookingRequest(USER_ID, RESOURCE_ID));
+        bookingService.createBooking(USER_ID, new BookingRequest(RESOURCE_ID));
 
         ArgumentCaptor<BookingOutboxEvent> captor = ArgumentCaptor.forClass(BookingOutboxEvent.class);
         verify(outboxRepository).save(captor.capture());
@@ -100,13 +100,13 @@ class BookingServiceTest {
 
     @Test
     void createBooking_nullUserId_throwsIllegalArgumentException() {
-        assertThatThrownBy(() -> bookingService.createBooking(new BookingRequest(null, RESOURCE_ID)))
+        assertThatThrownBy(() -> bookingService.createBooking(null, new BookingRequest(RESOURCE_ID)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void createBooking_nullResourceId_throwsIllegalArgumentException() {
-        assertThatThrownBy(() -> bookingService.createBooking(new BookingRequest(USER_ID, null)))
+        assertThatThrownBy(() -> bookingService.createBooking(USER_ID, new BookingRequest(null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -118,7 +118,7 @@ class BookingServiceTest {
         when(bookingMapper.toDTO(any())).thenReturn(dto);
         when(objectMapper.writeValueAsString(any())).thenThrow(new RuntimeException("serialization failed"));
 
-        assertThatThrownBy(() -> bookingService.createBooking(new BookingRequest(USER_ID, RESOURCE_ID)))
+        assertThatThrownBy(() -> bookingService.createBooking(USER_ID, new BookingRequest(RESOURCE_ID)))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Failed to serialize booking outbox event")
                 .cause().hasMessage("serialization failed");
@@ -263,6 +263,54 @@ class BookingServiceTest {
                 .hasMessageContaining(id.toString());
 
         verify(bookingRepository, never()).deleteById(any());
+    }
+
+    // ── cancelBooking ────────────────────────────────────────────────────────
+
+    @Test
+    void cancelBooking_returnsDTOWithCancelledStatus() throws Exception {
+        UUID id = UUID.randomUUID();
+        Booking booking = new Booking(USER_ID, RESOURCE_ID);
+        BookingDTO dto = new BookingDTO();
+        dto.setId(id);
+        dto.setStatus(BookingDTO.StatusEnum.CANCELLED);
+
+        when(bookingRepository.findById(id)).thenReturn(Optional.of(booking));
+        when(bookingMapper.toDTO(booking)).thenReturn(dto);
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+
+        BookingDTO result = bookingService.cancelBooking(id, "no stock");
+
+        assertThat(result.getStatus()).isEqualTo(BookingDTO.StatusEnum.CANCELLED);
+    }
+
+    @Test
+    void cancelBooking_savesBookingAndOutboxEventWithCancelledType() throws Exception {
+        UUID id = UUID.randomUUID();
+        Booking booking = new Booking(USER_ID, RESOURCE_ID);
+        BookingDTO dto = new BookingDTO();
+        dto.setId(id);
+
+        when(bookingRepository.findById(id)).thenReturn(Optional.of(booking));
+        when(bookingMapper.toDTO(booking)).thenReturn(dto);
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+
+        bookingService.cancelBooking(id, "timeout");
+
+        verify(bookingRepository).save(booking);
+        ArgumentCaptor<BookingOutboxEvent> captor = ArgumentCaptor.forClass(BookingOutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+        assertThat(captor.getValue().getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+    }
+
+    @Test
+    void cancelBooking_notFound_throwsResourceNotFoundException() {
+        UUID id = UUID.randomUUID();
+        when(bookingRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookingService.cancelBooking(id, "reason"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(id.toString());
     }
 
     // ── markOutboxEventAsProcessed ───────────────────────────────────────────
