@@ -8,6 +8,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Slf4j
 @Component
 public class BookingEventConsumer {
@@ -27,14 +29,15 @@ public class BookingEventConsumer {
             BookingCreatedEvent event,
             @Header("eventType") String eventType) {
 
-        if (!BookingEventType.BOOKING_CREATED.name().equals(eventType)) {
-            return;
-        }
+        UUID bookingId = event.id();
+        UUID resourceId = event.resourceId();
 
-        try {
-            inventoryService.reserveInventory(event.id(), event.resourceId());
-        } catch (Exception e) {
-            log.error("Kritikus hiba az esemény feldolgozásakor: bookingId={}", event.id(), e);
+        if (BookingEventType.BOOKING_CREATED.name().equals(eventType)) {
+            inventoryService.reserveInventory(bookingId, resourceId);
+        }
+        else if (BookingEventType.BOOKING_CANCELLED.name().equals(eventType)) {
+            log.info("Booking cancelled, starting compensation: {}", bookingId);
+            inventoryService.releaseInventory(bookingId, resourceId);
         }
     }
 }

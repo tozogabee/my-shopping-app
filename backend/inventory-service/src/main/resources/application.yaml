@@ -17,5 +17,10 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
+inventory:
+  relay:
+    enabled: true
+    fixed-delay-ms: 5000
+
 server:
   port: 8083

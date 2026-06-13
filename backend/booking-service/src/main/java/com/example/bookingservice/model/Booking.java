@@ -2,7 +2,6 @@ package com.example.bookingservice.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.AccessLevel;
 import java.time.Instant;
 import java.util.UUID;
 

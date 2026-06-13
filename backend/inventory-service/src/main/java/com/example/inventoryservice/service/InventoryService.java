@@ -33,7 +33,7 @@ public class InventoryService {
     public void reserveInventory(UUID bookingId, UUID resourceId) {
         try {
             ResourceInventory inventory = inventoryRepository.findById(resourceId)
-                    .orElseThrow(() -> new IllegalArgumentException("Erőforrás nem található"));
+                    .orElseThrow(() -> new IllegalArgumentException("Resource not found"));
 
             inventory.reserve(1);
             inventoryRepository.save(inventory);
@@ -41,30 +41,60 @@ public class InventoryService {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("aggregateId", bookingId.toString());
             payload.put("resourceId", resourceId.toString());
-            payload.put("status", "RESERVED");
+            payload.put("status", InventoryEventType.INVENTORY_RESERVED.name());
 
             InventoryOutboxEvent outboxEvent = new InventoryOutboxEvent(
-                    bookingId.toString(), // A BookingId a folyamat kulcsa (Saga ID)
+                    bookingId.toString(),
                     InventoryEventType.INVENTORY_RESERVED,
                     payload.toString()
             );
             outboxRepository.save(outboxEvent);
 
-            log.info("Készlet sikeresen lefoglalva a {} foglaláshoz", bookingId);
+            log.info("Inventory successfully reserved for booking {}", bookingId);
 
         } catch (Exception e) {
-            log.warn("Készletfoglalás elhasalt a {} foglaláshoz. Ok: {}", bookingId, e.getMessage());
+            log.warn("Inventory reservation failed for booking {}. Reason: {}", bookingId, e.getMessage());
 
-            ObjectNode failedPayload = objectMapper.createObjectNode();
+            ObjectNode failedPayload = this.objectMapper.createObjectNode();
             failedPayload.put("aggregateId", bookingId.toString());
-            failedPayload.put("reason", "Készlethiány vagy zárolási hiba");
+            failedPayload.put("status", InventoryEventType.INVENTORY_RESERVATION_FAILED.name());
+            failedPayload.put("reason", "Insufficient inventory or locking error");
 
             InventoryOutboxEvent failedEvent = new InventoryOutboxEvent(
                     bookingId.toString(),
                     InventoryEventType.INVENTORY_RESERVATION_FAILED,
                     failedPayload.toString()
             );
-            outboxRepository.save(failedEvent);
+            this.outboxRepository.save(failedEvent);
+        }
+    }
+
+    @Transactional
+    public void releaseInventory(UUID bookingId, UUID resourceId) {
+        try {
+            ResourceInventory inventory = inventoryRepository.findById(resourceId)
+                    .orElseThrow(() -> new IllegalArgumentException("Resource not found"));
+
+            inventory.release(1);
+            inventoryRepository.save(inventory);
+
+            ObjectNode payload = objectMapper.createObjectNode();
+            payload.put("aggregateId", bookingId.toString());
+            payload.put("resourceId", resourceId.toString());
+            payload.put("status", InventoryEventType.INVENTORY_RELEASED.name());
+
+            InventoryOutboxEvent outboxEvent = new InventoryOutboxEvent(
+                    bookingId.toString(),
+                    InventoryEventType.INVENTORY_RELEASED,
+                    payload.toString()
+            );
+            outboxRepository.save(outboxEvent);
+
+            log.info("Inventory successfully released for booking {} (compensation)", bookingId);
+
+        } catch (Exception e) {
+            // Only reached on a physical database error during release — data integrity may be compromised. Requires DLQ or manual intervention.
+            log.error("Critical error releasing inventory for booking {}: {}", bookingId, e.getMessage());
         }
     }
 }

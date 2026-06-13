@@ -26,10 +26,9 @@ public class ResourceInventory {
         this.availableQuantity = initialQuantity;
     }
 
-    // Üzleti metódus: A=A. Az entitás maga dönti el, hogy lefoglalható-e.
     public void reserve(int quantity) {
         if (this.availableQuantity < quantity) {
-            throw new IllegalStateException("Nincs elég készlet!");
+            throw new IllegalStateException("Insufficient inventory!");
         }
         this.availableQuantity -= quantity;
     }
