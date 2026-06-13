@@ -2,6 +2,8 @@ name: Booking Service CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'backend/booking-service/**'
       - 'backend/pom.xml'

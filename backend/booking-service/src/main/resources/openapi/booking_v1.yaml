@@ -2,7 +2,11 @@ openapi: 3.0.3
 info:
   title: Booking API
   version: 1.0.0
-  description: Erőforrás foglalási szolgáltatás
+  description: Erőforrás foglalási szolgáltatás JWT azonosítással
+
+security:
+  - bearerAuth: []
+
 paths:
   /api/v1/bookings:
     post:
@@ -24,7 +28,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BookingResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized (Hiányzó vagy érvénytelen JWT token)
           content:
             application/json:
               schema:
@@ -138,17 +142,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     BookingRequest:
       type: object
       required:
-        - userId
         - resourceId
       properties:
-        userId:
-          type: string
-          format: uuid
         resourceId:
           type: string
           format: uuid

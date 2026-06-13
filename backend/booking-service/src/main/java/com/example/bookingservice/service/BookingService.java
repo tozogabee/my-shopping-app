@@ -10,6 +10,7 @@ import com.example.bookingservice.mapper.BookingMapper;
 import com.example.bookingservice.model.Booking;
 import com.example.bookingservice.model.repository.BookingRepository;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class BookingService {
 
     private final BookingRepository bookingRepository;
@@ -35,8 +37,8 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingDTO createBooking(BookingRequest request) {
-        Booking booking = new Booking(request.getUserId(), request.getResourceId());
+    public BookingDTO createBooking(UUID userId, BookingRequest request) {
+        Booking booking = new Booking(userId, request.getResourceId());
         bookingRepository.save(booking);
 
         BookingDTO bookingDTO = bookingMapper.toDTO(booking);
@@ -92,9 +94,24 @@ public class BookingService {
 
     @Transactional
     public void deleteBookingById(UUID id) {
-        if (!bookingRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Booking not found: " + id);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
+
+        booking.cancel();
+
+        BookingDTO bookingDTO = bookingMapper.toDTO(booking);
+
+        try {
+            BookingOutboxEvent event = new BookingOutboxEvent(
+                    bookingDTO.getId().toString(),
+                    BookingEventType.BOOKING_CANCELLED,
+                    objectMapper.writeValueAsString(bookingDTO)
+            );
+            outboxRepository.save(event);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize booking outbox event", e);
         }
+
         bookingRepository.deleteById(id);
     }
 
@@ -104,5 +121,32 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Outbox event not found: " + eventId));
         event.markAsProcessed();
         outboxRepository.save(event);
+    }
+
+    @Transactional
+    public BookingDTO cancelBooking(UUID id, String reason) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
+
+        // Entitás belső állapotának frissítése (PENDING -> CANCELLED)
+        // Megjegyzés: Ehhez a Booking entitásban létre kell hoznod egy cancel() metódust!
+        booking.cancel();
+        bookingRepository.save(booking);
+
+        BookingDTO bookingDTO = bookingMapper.toDTO(booking);
+
+        try {
+            BookingOutboxEvent event = new BookingOutboxEvent(
+                    bookingDTO.getId().toString(),
+                    BookingEventType.BOOKING_CANCELLED,
+                    objectMapper.writeValueAsString(bookingDTO)
+            );
+            outboxRepository.save(event);
+            log.info("Booking {} cancelled. Reason: {}", id, reason);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize booking outbox event", e);
+        }
+
+        return bookingDTO;
     }
 }

@@ -15,6 +15,11 @@ spring:
       path: /h2-console
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: booking-service-test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     admin:
       fail-fast: false
       operation-timeout: 1

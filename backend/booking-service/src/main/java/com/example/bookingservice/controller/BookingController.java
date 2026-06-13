@@ -5,6 +5,7 @@ import com.example.bookingservice.api.dto.BookingDTO;
 import com.example.bookingservice.api.dto.BookingRequest;
 import com.example.bookingservice.api.dto.BookingResponse;
 import com.example.bookingservice.mapper.BookingMapper;
+import com.example.bookingservice.security.JwtUserResolver;
 import com.example.bookingservice.service.BookingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,16 +19,19 @@ public class BookingController implements BookingsApi {
 
     private final BookingService bookingService;
     private final BookingMapper bookingMapper;
+    private final JwtUserResolver jwtUserResolver;
 
-    public BookingController(BookingService bookingService, BookingMapper bookingMapper) {
+    public BookingController(BookingService bookingService, BookingMapper bookingMapper, JwtUserResolver jwtUserResolver) {
         this.bookingService = bookingService;
         this.bookingMapper = bookingMapper;
+        this.jwtUserResolver = jwtUserResolver;
     }
 
     @Override
     public ResponseEntity<BookingResponse> createBooking(BookingRequest bookingRequest) {
+        UUID userId = jwtUserResolver.getCurrentUserId();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(this.bookingMapper.toResponse(this.bookingService.createBooking(bookingRequest)));
+                .body(bookingMapper.toResponse(bookingService.createBooking(userId, bookingRequest)));
     }
 
     @Override

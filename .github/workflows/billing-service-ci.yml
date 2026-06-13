@@ -2,6 +2,8 @@ name: Billing Service CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'backend/billing-service/**'
       - 'backend/pom.xml'

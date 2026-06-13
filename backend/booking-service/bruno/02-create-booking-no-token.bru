@@ -1,0 +1,23 @@
+meta {
+  name: Create Booking - No Token (Unauthorized)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/bookings
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "resourceId": "{{$randomUUID}}"
+  }
+}
+
+tests {
+  test("returns 401 Unauthorized without token", function() {
+    expect(res.status).to.equal(401);
+  });
+}

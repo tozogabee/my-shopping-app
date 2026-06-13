@@ -7,7 +7,11 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/bookings/{{bookingId}}
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 tests {
@@ -16,7 +20,7 @@ tests {
   });
 
   test("id matches requested id", function() {
-    expect(res.body.id).to.equal(bru.getVar("bookingId"));
+    expect(res.body.id).to.equal(bru.getEnvVar("bookingId"));
   });
 
   test("has userId", function() {

@@ -47,9 +47,8 @@ class BookingServiceComponentTest {
     void createBooking_persistsBookingInDatabase() {
         UUID userId = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
-        BookingRequest request = new BookingRequest(userId, resourceId);
 
-        BookingDTO dto = bookingService.createBooking(request);
+        BookingDTO dto = bookingService.createBooking(userId, new BookingRequest(resourceId));
 
         Optional<Booking> saved = bookingRepository.findById(dto.getId());
         assertThat(saved).isPresent();
@@ -62,7 +61,7 @@ class BookingServiceComponentTest {
         UUID userId = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
 
-        BookingDTO dto = bookingService.createBooking(new BookingRequest(userId, resourceId));
+        BookingDTO dto = bookingService.createBooking(userId, new BookingRequest(resourceId));
 
         List<BookingOutboxEvent> events = outboxRepository.findAll();
         assertThat(events).hasSize(1);
@@ -77,7 +76,7 @@ class BookingServiceComponentTest {
         UUID userId = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
 
-        bookingService.createBooking(new BookingRequest(userId, resourceId));
+        bookingService.createBooking(userId, new BookingRequest(resourceId));
 
         BookingOutboxEvent event = outboxRepository.findAll().getFirst();
         assertThat(event.getPayload()).contains(userId.toString());
@@ -87,7 +86,7 @@ class BookingServiceComponentTest {
 
     @Test
     void createBooking_dtoHasPendingStatusAndNonNullId() {
-        BookingDTO dto = bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        BookingDTO dto = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         assertThat(dto.getId()).isNotNull();
         assertThat(dto.getStatus()).isEqualTo(BookingDTO.StatusEnum.PENDING);
@@ -95,7 +94,7 @@ class BookingServiceComponentTest {
 
     @Test
     void createBooking_nullUserId_doesNotPersistAnything() {
-        assertThatThrownBy(() -> bookingService.createBooking(new BookingRequest(null, UUID.randomUUID())))
+        assertThatThrownBy(() -> bookingService.createBooking(null, new BookingRequest(UUID.randomUUID())))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(bookingRepository.count()).isZero();
@@ -104,7 +103,7 @@ class BookingServiceComponentTest {
 
     @Test
     void markOutboxEventAsProcessed_setsProcessedFlag() {
-        bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         BookingOutboxEvent event = outboxRepository.findAll().getFirst();
         assertThat(event.isProcessed()).isFalse();
@@ -125,7 +124,7 @@ class BookingServiceComponentTest {
 
     @Test
     void confirmBooking_changesStatusToConfirmedInDatabase() {
-        BookingDTO created = bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         BookingDTO confirmed = bookingService.confirmBooking(created.getId());
 
@@ -136,7 +135,7 @@ class BookingServiceComponentTest {
 
     @Test
     void confirmBooking_persistsOutboxEventWithConfirmedType() {
-        BookingDTO created = bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
         outboxRepository.deleteAll();
 
         bookingService.confirmBooking(created.getId());
@@ -155,7 +154,7 @@ class BookingServiceComponentTest {
 
     @Test
     void confirmBooking_alreadyConfirmed_throwsIllegalStateException() {
-        BookingDTO created = bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
         bookingService.confirmBooking(created.getId());
 
         assertThatThrownBy(() -> bookingService.confirmBooking(created.getId()))
@@ -168,7 +167,7 @@ class BookingServiceComponentTest {
     void getBookingById_returnsCorrectDTO() {
         UUID userId = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
-        BookingDTO created = bookingService.createBooking(new BookingRequest(userId, resourceId));
+        BookingDTO created = bookingService.createBooking(userId, new BookingRequest(resourceId));
 
         BookingDTO found = bookingService.getBookingById(created.getId());
 
@@ -188,8 +187,8 @@ class BookingServiceComponentTest {
 
     @Test
     void getAllBookings_returnsAllPersistedBookings() {
-        bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
-        bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+        bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
+        bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         assertThat(bookingService.getAllBookings()).hasSize(2);
     }
@@ -202,17 +201,64 @@ class BookingServiceComponentTest {
     // ── deleteBookingById ────────────────────────────────────────────────────
 
     @Test
-    void deleteBookingById_removesBookingFromDatabase() {
-        BookingDTO created = bookingService.createBooking(new BookingRequest(UUID.randomUUID(), UUID.randomUUID()));
+    void deleteBookingById_removesBookingAndSavesCancelledOutboxEvent() {
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         bookingService.deleteBookingById(created.getId());
 
         assertThat(bookingRepository.findById(created.getId())).isEmpty();
+        assertThat(outboxRepository.findAll())
+                .anySatisfy(event -> {
+                    assertThat(event.getAggregateId()).isEqualTo(created.getId().toString());
+                    assertThat(event.getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+                    assertThat(event.getPayload()).contains("\"CANCELLED\"");
+                });
     }
 
     @Test
     void deleteBookingById_notFound_throwsResourceNotFoundException() {
         assertThatThrownBy(() -> bookingService.deleteBookingById(UUID.randomUUID()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── cancelBooking ────────────────────────────────────────────────────────
+
+    @Test
+    void cancelBooking_changesStatusToCancelledInDatabase() {
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
+
+        bookingService.cancelBooking(created.getId(), "test reason");
+
+        Booking booking = bookingRepository.findById(created.getId()).orElseThrow();
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelBooking_persistsOutboxEventWithCancelledType() {
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
+        outboxRepository.deleteAll();
+
+        bookingService.cancelBooking(created.getId(), "test");
+
+        List<BookingOutboxEvent> events = outboxRepository.findAll();
+        assertThat(events).hasSize(1);
+        assertThat(events.getFirst().getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+    }
+
+    @Test
+    void cancelBooking_alreadyCancelled_isIdempotent() {
+        BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
+        bookingService.cancelBooking(created.getId(), "first");
+
+        bookingService.cancelBooking(created.getId(), "second");
+
+        Booking booking = bookingRepository.findById(created.getId()).orElseThrow();
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelBooking_notFound_throwsResourceNotFoundException() {
+        assertThatThrownBy(() -> bookingService.cancelBooking(UUID.randomUUID(), "reason"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }
