@@ -97,6 +97,8 @@ public class BookingService {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
 
+        booking.cancel();
+
         BookingDTO bookingDTO = bookingMapper.toDTO(booking);
 
         try {

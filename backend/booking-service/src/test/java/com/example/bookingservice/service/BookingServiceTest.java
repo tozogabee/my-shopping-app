@@ -249,11 +249,11 @@ class BookingServiceTest {
         Booking booking = new Booking(USER_ID, RESOURCE_ID);
         BookingDTO dto = new BookingDTO();
         dto.setId(id);
-        dto.setStatus(BookingDTO.StatusEnum.PENDING);
+        dto.setStatus(BookingDTO.StatusEnum.CANCELLED);
 
         when(bookingRepository.findById(id)).thenReturn(Optional.of(booking));
         when(bookingMapper.toDTO(booking)).thenReturn(dto);
-        when(objectMapper.writeValueAsString(dto)).thenReturn("{\"id\":\"" + id + "\"}");
+        when(objectMapper.writeValueAsString(dto)).thenReturn("{\"id\":\"" + id + "\",\"status\":\"CANCELLED\"}");
 
         bookingService.deleteBookingById(id);
 
@@ -261,6 +261,7 @@ class BookingServiceTest {
         verify(outboxRepository).save(captor.capture());
         assertThat(captor.getValue().getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
         assertThat(captor.getValue().getAggregateId()).isEqualTo(id.toString());
+        assertThat(captor.getValue().getPayload()).contains("\"status\":\"CANCELLED\"");
 
         verify(bookingRepository).deleteById(id);
     }

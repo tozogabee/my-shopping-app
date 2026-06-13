@@ -211,6 +211,7 @@ class BookingServiceComponentTest {
                 .anySatisfy(event -> {
                     assertThat(event.getAggregateId()).isEqualTo(created.getId().toString());
                     assertThat(event.getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+                    assertThat(event.getPayload()).contains("\"CANCELLED\"");
                 });
     }
 
