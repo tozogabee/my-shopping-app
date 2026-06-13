@@ -63,17 +63,31 @@ services:
       KC_DB: dev-file
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: localhost
+      KC_HOSTNAME: keycloak
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
     volumes:
       - ./keycloak/myshopping-realm.json:/opt/keycloak/data/import/myshopping-realm.json
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/realms/myshopping || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 30s
+
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/booking_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/myshopping
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: on-failure
 
 volumes:
   postgres_data:
