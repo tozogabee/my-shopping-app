@@ -1,8 +1,8 @@
-package com.example.bookingservice.kafka;
+package com.example.inventoryservice.kafka;
 
-import com.example.bookingservice.events.BookingOutboxEvent;
-import com.example.common.events.BookingEventType;
-import com.example.bookingservice.events.repository.BookingOutboxEventRepository;
+import com.example.inventoryservice.event.InventoryEventType;
+import com.example.inventoryservice.event.InventoryOutboxEvent;
+import com.example.inventoryservice.event.InventoryOutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,26 +14,27 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class BookingOutboxRelayTest {
+class InventoryOutboxRelayTest {
 
     @Mock
-    private BookingOutboxEventRepository outboxRepository;
+    private InventoryOutboxEventRepository outboxRepository;
 
     @Mock
-    private BookingKafkaProducer producer;
+    private InventoryKafkaProducer producer;
 
     @InjectMocks
-    private BookingOutboxRelay relay;
+    private InventoryOutboxRelay relay;
 
     @Test
     void relay_publishesEachUnprocessedEventAndMarksItProcessed() {
-        BookingOutboxEvent event1 = new BookingOutboxEvent("agg-1", BookingEventType.BOOKING_CREATED, "{}");
-        BookingOutboxEvent event2 = new BookingOutboxEvent("agg-2", BookingEventType.BOOKING_CONFIRMED, "{}");
+        InventoryOutboxEvent event1 = new InventoryOutboxEvent("agg-1", InventoryEventType.INVENTORY_RESERVED, "{}");
+        InventoryOutboxEvent event2 = new InventoryOutboxEvent("agg-2", InventoryEventType.INVENTORY_RELEASED, "{}");
         when(outboxRepository.findTop50ByProcessedFalseOrderByCreatedAtAsc())
                 .thenReturn(List.of(event1, event2));
 
@@ -56,16 +57,27 @@ class BookingOutboxRelayTest {
     }
 
     @Test
-    void relay_processedInOrder_oldestFirst() {
-        BookingOutboxEvent first = new BookingOutboxEvent("agg-1", BookingEventType.BOOKING_CREATED, "{}");
-        BookingOutboxEvent second = new BookingOutboxEvent("agg-2", BookingEventType.BOOKING_CREATED, "{}");
+    void relay_processesEventsInOrder_oldestFirst() {
+        InventoryOutboxEvent first = new InventoryOutboxEvent("agg-1", InventoryEventType.INVENTORY_RESERVED, "{}");
+        InventoryOutboxEvent second = new InventoryOutboxEvent("agg-2", InventoryEventType.INVENTORY_RESERVATION_FAILED, "{}");
         when(outboxRepository.findTop50ByProcessedFalseOrderByCreatedAtAsc())
                 .thenReturn(List.of(first, second));
 
         relay.relay();
 
-        var ordered = org.mockito.Mockito.inOrder(producer);
+        var ordered = inOrder(producer);
         ordered.verify(producer).send(first);
         ordered.verify(producer).send(second);
+    }
+
+    @Test
+    void relay_marksEventProcessedAfterSend() {
+        InventoryOutboxEvent event = new InventoryOutboxEvent("agg-1", InventoryEventType.INVENTORY_RESERVED, "{}");
+        assertThat(event.isProcessed()).isFalse();
+        when(outboxRepository.findTop50ByProcessedFalseOrderByCreatedAtAsc()).thenReturn(List.of(event));
+
+        relay.relay();
+
+        assertThat(event.isProcessed()).isTrue();
     }
 }
