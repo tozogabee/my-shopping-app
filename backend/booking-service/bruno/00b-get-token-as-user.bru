@@ -1,0 +1,35 @@
+meta {
+  name: Get Token (as testuser)
+  type: http
+  seq: 0
+}
+
+post {
+  url: {{keycloakUrl}}/realms/myshopping/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: booking-client
+  client_secret: {{clientSecret}}
+  username: testuser
+  password: testuser
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("accessToken", res.body.access_token);
+  }
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("response has access_token", function() {
+    expect(res.body.access_token).to.be.a("string");
+  });
+}

@@ -7,23 +7,22 @@ meta {
 post {
   url: {{baseUrl}}/api/v1/bookings
   body: json
-  auth: none
+  auth: bearer
 }
 
-headers {
-  Content-Type: application/json
+auth:bearer {
+  token: {{accessToken}}
 }
 
 body:json {
   {
-    "userId": "{{$randomUUID}}",
     "resourceId": "{{$randomUUID}}"
   }
 }
 
 script:post-response {
   if (res.status === 201) {
-    bru.setVar("bookingId", res.body.id);
+    bru.setEnvVar("bookingId", res.body.id);
   }
 }
 
