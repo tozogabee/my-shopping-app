@@ -244,11 +244,23 @@ class BookingServiceTest {
     // ── deleteBookingById ────────────────────────────────────────────────────
 
     @Test
-    void deleteBookingById_callsDeleteById() {
+    void deleteBookingById_publishesCancelledEventAndDeletesBooking() throws Exception {
         UUID id = UUID.randomUUID();
-        when(bookingRepository.existsById(id)).thenReturn(true);
+        Booking booking = new Booking(USER_ID, RESOURCE_ID);
+        BookingDTO dto = new BookingDTO();
+        dto.setId(id);
+        dto.setStatus(BookingDTO.StatusEnum.PENDING);
+
+        when(bookingRepository.findById(id)).thenReturn(Optional.of(booking));
+        when(bookingMapper.toDTO(booking)).thenReturn(dto);
+        when(objectMapper.writeValueAsString(dto)).thenReturn("{\"id\":\"" + id + "\"}");
 
         bookingService.deleteBookingById(id);
+
+        ArgumentCaptor<BookingOutboxEvent> captor = ArgumentCaptor.forClass(BookingOutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+        assertThat(captor.getValue().getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+        assertThat(captor.getValue().getAggregateId()).isEqualTo(id.toString());
 
         verify(bookingRepository).deleteById(id);
     }
@@ -256,13 +268,14 @@ class BookingServiceTest {
     @Test
     void deleteBookingById_notFound_throwsResourceNotFoundException() {
         UUID id = UUID.randomUUID();
-        when(bookingRepository.existsById(id)).thenReturn(false);
+        when(bookingRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bookingService.deleteBookingById(id))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
 
         verify(bookingRepository, never()).deleteById(any());
+        verify(outboxRepository, never()).save(any());
     }
 
     // ── cancelBooking ────────────────────────────────────────────────────────

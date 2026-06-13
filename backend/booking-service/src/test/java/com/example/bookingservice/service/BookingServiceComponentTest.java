@@ -201,12 +201,17 @@ class BookingServiceComponentTest {
     // ── deleteBookingById ────────────────────────────────────────────────────
 
     @Test
-    void deleteBookingById_removesBookingFromDatabase() {
+    void deleteBookingById_removesBookingAndSavesCancelledOutboxEvent() {
         BookingDTO created = bookingService.createBooking(UUID.randomUUID(), new BookingRequest(UUID.randomUUID()));
 
         bookingService.deleteBookingById(created.getId());
 
         assertThat(bookingRepository.findById(created.getId())).isEmpty();
+        assertThat(outboxRepository.findAll())
+                .anySatisfy(event -> {
+                    assertThat(event.getAggregateId()).isEqualTo(created.getId().toString());
+                    assertThat(event.getEventType()).isEqualTo(BookingEventType.BOOKING_CANCELLED);
+                });
     }
 
     @Test

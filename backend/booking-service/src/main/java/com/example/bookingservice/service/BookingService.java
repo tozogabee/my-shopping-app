@@ -94,9 +94,22 @@ public class BookingService {
 
     @Transactional
     public void deleteBookingById(UUID id) {
-        if (!bookingRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Booking not found: " + id);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
+
+        BookingDTO bookingDTO = bookingMapper.toDTO(booking);
+
+        try {
+            BookingOutboxEvent event = new BookingOutboxEvent(
+                    bookingDTO.getId().toString(),
+                    BookingEventType.BOOKING_CANCELLED,
+                    objectMapper.writeValueAsString(bookingDTO)
+            );
+            outboxRepository.save(event);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize booking outbox event", e);
         }
+
         bookingRepository.deleteById(id);
     }
 
