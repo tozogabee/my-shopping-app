@@ -3,7 +3,7 @@ package com.example.bookingservice.service;
 import com.example.bookingservice.api.dto.BookingDTO;
 import com.example.bookingservice.api.dto.BookingRequest;
 import com.example.bookingservice.events.BookingOutboxEvent;
-import com.example.bookingservice.events.enums.BookingEventType;
+import com.example.common.events.BookingEventType;
 import com.example.bookingservice.events.repository.BookingOutboxEventRepository;
 import com.example.bookingservice.exception.ResourceNotFoundException;
 import com.example.bookingservice.mapper.BookingMapper;

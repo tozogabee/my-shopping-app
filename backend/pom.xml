@@ -17,6 +17,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>common</module>
         <module>booking-service</module>
         <module>inventory-service</module>
         <module>billing-service</module>

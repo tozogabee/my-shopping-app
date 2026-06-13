@@ -1,7 +1,7 @@
 package com.example.bookingservice.kafka;
 
 import com.example.bookingservice.events.BookingOutboxEvent;
-import com.example.bookingservice.events.enums.BookingEventType;
+import com.example.common.events.BookingEventType;
 import com.example.bookingservice.events.repository.BookingOutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

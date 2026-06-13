@@ -1,0 +1,40 @@
+package com.example.inventoryservice.model;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+
+import java.util.UUID;
+
+@Entity
+@Table(name = "resource_inventory")
+@Getter
+public class ResourceInventory {
+
+    @Id
+    private UUID resourceId;
+
+    @Column(nullable = false)
+    private int availableQuantity;
+
+    @Version
+    private Long version;
+
+    protected ResourceInventory() {}
+
+    public ResourceInventory(UUID resourceId, int initialQuantity) {
+        this.resourceId = resourceId;
+        this.availableQuantity = initialQuantity;
+    }
+
+    // Üzleti metódus: A=A. Az entitás maga dönti el, hogy lefoglalható-e.
+    public void reserve(int quantity) {
+        if (this.availableQuantity < quantity) {
+            throw new IllegalStateException("Nincs elég készlet!");
+        }
+        this.availableQuantity -= quantity;
+    }
+
+    public void release(int quantity) {
+        this.availableQuantity += quantity;
+    }
+}
